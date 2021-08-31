@@ -1,4 +1,4 @@
-看股票盈利价格区间：
+See stock and performance based on Stock Price Range：
 
 SELECT '0_to_5_price',AVG(change_rate) as daily_rate,AVG(perf_week) as week_performance from get_last_ticker_data_with_profile where price BETWEEN 0 AND 5
 
@@ -31,7 +31,7 @@ union
 SELECT 'over 200',AVG(change_rate) as daily_rate,AVG(perf_week) as week_performance from get_last_ticker_data_with_profile where price > 200
 
 
-看股票市值盈利区间：
+See stock performance based on market_cap：
 SELECT '小于1亿',AVG(change_rate) as daily_rate,AVG(perf_week) as week_performance from get_last_ticker_data_with_profile where market_cap < 100000000
 
 union
@@ -56,7 +56,7 @@ union
 SELECT '大于100亿',AVG(change_rate) as daily_rate,AVG(perf_week) as week_performance from get_last_ticker_data_with_profile where market_cap > 10000000000
 
 
-捕捉异动期权。
+see the option movement data
 select
   ticker,
   type,
@@ -130,11 +130,11 @@ group by
 having cnt_interest_increaed > 35 and cnt_bid_increaed > 0 and cnt_bid_increaed-cnt_bid_decreaed>0 and cnt_vol_increaed > cnt_vol_decreaed（对于最后二个限定条件不那么严格可以去掉，如果不严格可以对cnt_interest_increaed进行更严格的限定）
 
 
-选股+看市场情绪面：
+#see emotion：
 select a.*,b.price,b.change_rate,b.industry from (select * from mega_grid_sortbycount where total_count > 5) a inner join get_last_ticker_data_with_profile b on a.ticker = b.ticker
 
 
-观察市场气氛变化。
+see insider trading info:
 SELECT 'insider sales',sum(num_shares)
 FROM insider_trading_info where transaction = 'sale' and date >= cast( date_sub(NOW(), INTERVAL 5 DAY) as date )
 
@@ -147,14 +147,14 @@ union
 select 'insider option exercise',sum(num_shares)
 FROM insider_trading_info where transaction = 'option exercise' and date >= cast( date_sub(NOW(), INTERVAL 5 DAY) as date )
 
-用比例观察市场氛围变化 by每一天
+see insider buy ratio by day
 select CASE WHEN b.sum = 0 Then "NO INSIDER BUY" ELSE (a.sum/b.sum) END as sale_buy_ratio from (SELECT sum(REPLACE(num_shares, ',', '')) as sum from insider_trading_info where date = '2021-03-31' and transaction = 'sale') a,(SELECT sum(REPLACE(num_shares, ',', '')) as sum from insider_trading_info where date = '2021-03-31' and transaction = 'buy') b
 
-用比例观察市场氛围变化by 总结天数：
+see insider buy ratio sum：
 SELECT (a.countA/b.countB)
 FROM (select sum(num_shares) as countA from insider_trading_info where transaction = 'sale' and date >= cast( date_sub(NOW(), INTERVAL 3 DAY) as date ))a,(select sum(num_shares) as countB from insider_trading_info where transaction = 'buy' and date >= cast( date_sub(NOW(), INTERVAL 5 DAY) as date ))b
 
-用比例观察多天市场氛围变化
+see ratio on different days:
 select '3days',(SELECT (a.countA/b.countB)
 FROM (select sum(num_shares) as countA from insider_trading_info where transaction = 'sale' and date >= cast( date_sub(NOW(), INTERVAL 3 DAY) as date ))a,(select sum(num_shares) as countB from insider_trading_info where transaction = 'buy' and date >= cast( date_sub(NOW(), INTERVAL 3 DAY) as date ))b) as 3_day_salebuy_ratio
 
@@ -177,7 +177,8 @@ Union
 select '45days',(SELECT (a.countA/b.countB)
 FROM (select sum(num_shares) as countA from insider_trading_info where transaction = 'sale' and date >= cast( date_sub(NOW(), INTERVAL 45 DAY) as date ))a,(select sum(num_shares) as countB from insider_trading_info where transaction = 'buy' and date >= cast( date_sub(NOW(), INTERVAL 45 DAY) as date ))b) as 45_day_salebuy_ratio
 
-用比例观察每周ration的变化 (在每个周天run,感觉不太准)
+
+#See ratio by week
 select '7days',(SELECT (a.countA/b.countB)
 FROM (select sum(num_shares) as countA from insider_trading_info where transaction = 'sale' and date >= cast( date_sub(NOW(), INTERVAL 7 DAY) as date ))a,(select sum(num_shares) as countB from insider_trading_info where transaction = 'buy' and date >= cast( date_sub(NOW(), INTERVAL 7 DAY) as date ))b) as 7_day_salebuy_ratio
 union
@@ -192,13 +193,13 @@ FROM (select sum(num_shares) as countA from insider_trading_info where transacti
 
 
 
-观察板块内线人买入气氛（资金流入流出板块）
+see industry of insider buy
 select a.*,b.industry from (select ticker,insider,relationship,date,transaction,cost,value,num_shares from insider_trading_info where date >= cast( date_sub(NOW(), INTERVAL 3 DAY) as date )) a inner join get_last_ticker_data_with_profile b on a.ticker = b.ticker order by transaction desc
 
-统计板块情况的query:
+Industry query:
 select b.industry,sum(REPLACE(a.num_shares, ',', '')) as sum  ,a.transaction from (select ticker,insider,relationship,date,transaction,cost,value,num_shares from insider_trading_info where date >= cast( date_sub(NOW(), INTERVAL 5 DAY) as date )) a inner join get_last_ticker_data_with_profile b on a.ticker = b.ticker group by a.transaction,b.industry
 
-大盘看盘的简易报告
+See spy sector performance
 select ticker, company,change_rate
 ,perf_week
 ,perf_month,perf_quarter
@@ -210,22 +211,21 @@ select ticker, company,change_rate
 
 
 
-计算机构的平均成本。
+#Evaluate institution cost
 SELECT (SUM(Replace(value,',',''))/SUM(Replace(shares,',',''))) AS newvalue FROM ticker_holder_info_1 WHERE ticker ="jfin" or ticker = ‘appl’ (ticker可以换)
 
-计算近段时间机构加减仓比例
+#Evaluate Institution add stock/reduce stock by ratio
 select a.share_increase/abs(b.share_decrease) as share_diff from (SELECT sum(shares_diff) As share_increase FROM ticker_holder_shares_change where ticker = 'DQ' and day_recorded >= '2020-10-30' and type in ( 'increased', 'added new' )) AS a,(SELECT sum(shares_diff) As share_decrease FROM ticker_holder_shares_change where ticker = 'DQ' and day_recorded >= '2020-10-30' and type in ( 'decreased', 'quit' )) As b
 
-计算近段时间机构加减仓绝对值
+
+#Evaluate Institution add stock/reduce stock by real number
 select (a.share_increase--b.share_decrease) as share_diff from (SELECT sum(shares_diff) As share_increase FROM ticker_holder_shares_change where ticker = 'DQ' and day_recorded >= '2020-10-30' and type in ( 'increased', 'added new' )) AS a,(SELECT sum(shares_diff) As share_decrease FROM ticker_holder_shares_change where ticker = 'DQ' and day_recorded >= '2020-10-30' and type in ( 'decreased', 'quit' )) As b
  (标注：时间以及股票名字可以替换)
 
 
 
-查看全面数据：
-select * from mega_grid where ticker ='rekr' or select * from get_last_ticker_data_with_profile where ticker in ('finv',’tour’,’cmcm’)
 
-临时方案
+#When mega table is not working:
 
 select a.*,industry from ticker_linear_regression_stat a left join  get_last_ticker_data_with_profile b on a.ticker = b.ticker where a.ticker in (select ticker from mega_grid_sortbycount where total_count>7) and mid_inst_own_slope > 0 and mid_sale_slope > 0
 
@@ -234,39 +234,35 @@ select a.*,industry from ticker_linear_regression_stat a left join  get_last_tic
 
 
 
-计算距离机构的平均成本的涨幅。
+#calculate the increase from institution cost
 SELECT (SUM(Replace(value,',',''))/SUM(Replace(shares,',',''))) AS newvalue FROM ticker_holder_info_1 WHERE ticker ="jfin"  or ticker = ‘appl’
 
-生物医药指标：select AVG(change_rate) as daily_rate, STDDEV(change_rate) as daily_std,AVG(perf_week) as avg_week_perf,AVG(perf_month) as monty_rate  from get_last_ticker_data_with_profile where industry = "Biotechnology" or industry = "Diagnostics & Research" or industry = "Medical Instruments & Supplies" or industry = "Medical Care Facilities" and price < 10
+#bio industry
+select AVG(change_rate) as daily_rate, STDDEV(change_rate) as daily_std,AVG(perf_week) as avg_week_perf,AVG(perf_month) as monty_rate  from get_last_ticker_data_with_profile where industry = "Biotechnology" or industry = "Diagnostics & Research" or industry = "Medical Instruments & Supplies" or industry = "Medical Care Facilities" and price < 10
 
 
-旅游板块选股：
+#travel industry
 select * from mega_grid where ticker in (select ticker from ticker_profile where instr( description, 'travel' ) > 0 or instr( description, 'hotel' )) and not industry = "Banks - Regional" and not ticker in ('GOOGL','DOYU','KHC') and not instr(industry,'insurance')>0  and instr( short_inst_own, 'up' ) > 0 and instr( mid_sale, 'up' ) > 0 limit 50
 
-查看某只股票bid/ask求和的数据：
+#bid/ask data
 select ticker,type,sum(bid) as sum_bid, sum(ask) as sum_ask,sum(volume) as sum_volume, sum(open_interest) as sum_open_interest,avg(implied_volatility) as avg_volatility from ticker_options group by ticker,type having  avg_volatility <0.05 and avg_volatility > 0 limit 100
 
-选择差股：
-
-select * from mega_grid where country = "china" and instr( mid_sale, 'down' ) > 0 and instr( short_target_price, 'down' ) > 0 and instr(mid_inst_own,'down') > 0 and instr(long_target_price,'down') > 0 and instr(short_switch_rate,'down') > 0 
 
 
-选择具体某个期权：
+choose option for specific stock：
 select * from ticker_options where ticker = "Qdel" and bid/ask>0.7 Group by ticker,type,contract_name having max(volume)>10 order by volume desc,open_interest desc,implied_volatility asc   (Qdel可以代替)
 
 
-债券相关指标
+#See bond:
 select * from class_4.ticker_hist where ticker in ("^FVX","^IRX","^TNX", "^TYX") and date >= cast( date_sub(NOW(), INTERVAL 4 DAY) as date )
 
-查看不同天数的report（完成90%以上）：
+#see report on different days
 select ticker,date,price,change_rate,cast(price-prev_close as decimal(10, 2)) as price_compared_yes_close,volume,cast(SUBSTR(avg_volume,1,LENGTH(avg_volume)-1)*1000000 as decimal(10, 2)) as average_volumn,volume-SUBSTR(avg_volume,1,LENGTH(avg_volume)-1)*1000000 as volume_differ,perf_week,perf_month,perf_quarter,perf_half_y,perf_year,dividend,dividend_rate,sma20,sma50,sma200 from us_tickers where date >= cast( date_sub(NOW(), INTERVAL 10 DAY) as date ) and ticker in ("spy","xlb","xlc","xle","xlf","xli","xlk","xlp","xlre","xlu","xlv","xly")
 
 
 
-旅游行业选股
-select ticker,date,company,change_rate,perf_week,perf_month,perf_quarter,perf_half_y,perf_year,insider_trans,inst_trans,target_price,price,prev_close,volume,if (right(avg_volume,1)='K',avg_volume*1000, avg_volume*1000000) as avg_volume,sector, industry,country,market_cap,beta,sales,income,employees,dividend,dividend_rate,earnings,weekly_volatility,monthly_volatility,eps_next_y, eps_this_y,eps_next_5_y,eps_past_5_y,sales_past_5_y,pe,forward_pe,pb,pc,peg,ps,p_fcf,recom,short_ratio,sma20,sma50,sma200 FROM get_last_ticker_data_with_profile where ticker in ("AACG","GHG","TCS","ELY","MGP","TRVG","ROL","CG","SCI","AOS","TCS","TCOM","HTHT","CRTO","COE","YTRA")
 
-看成功内线人员交易
+#see successful insider
 select 
 a.*,g.price, inst_cost,sum_shares_increased,sum_shares_decreased,short_short_ratio_slope,cast((g.price-a.cost)/abs(a.cost)*100 as decimal(10, 2)) as cost_diff_percent,g.target_price,(g.price-g.target_price) as to_target_diff,g.peg,b.close,c.date date_followed, c.close close_followed,
 datediff( c.date, a.date ) date_diff, g.industry,e.total_count,e.good_factors,concat( xxx_call.cnt_total,'::',xxx_put.cnt_total ) call_puts_total,
@@ -330,11 +326,9 @@ left join (
 SELECT ticker,(SUM(Replace(value,',',''))/SUM(Replace(shares,',',''))) AS inst_cost FROM ticker_holder_info_1 group by ticker) ii on a.ticker = ii.ticker
 order by date desc  
 
-(下一步：
-查看Industry最近performance:  Query:  select avg(perf_week) from get_last_ticker_data_with_profile where industry = 'Banks - Regional'
-)
 
-选好的股票看他们的期权
+
+#see good stock option data
 select a.ticker,a.total_count,b.industry,concat( xxx_call.cnt_total,'::',xxx_put.cnt_total ) call_puts_total,
 concat( xxx_call.cnt_bid_increased,'::',xxx_call.cnt_bid_decreased ) calls_bid_inc_dec_cnts,
 concat(xxx_call.cnt_vol_increased,'::', xxx_call.cnt_vol_decreased ) calls_vol_inc_dec_cnts,
@@ -345,7 +339,7 @@ left join ticker_options_summary xxx_put
 on a.ticker = xxx_put.ticker and xxx_put.type = 'put'
 
 
-改进版：
+#improved version
 select a.ticker,a.total_count,b.industry,b.price,b.target_price,CASE WHEN b.market_cap IS NULL Then "NULL VALUE" ELSE concat(b.market_cap/1000000,'M') End as market_cap,inst_cost, sum_shares_increased, sum_shares_decreased,concat( xxx_call.cnt_total,'::',xxx_put.cnt_total ) call_puts_total,
 concat( xxx_call.cnt_bid_increased,'::',xxx_call.cnt_bid_decreased ) calls_bid_inc_dec_cnts,
 concat(xxx_call.cnt_vol_increased,'::', xxx_call.cnt_vol_decreased ) calls_vol_inc_dec_cnts,
@@ -372,7 +366,7 @@ select a.*,b.industry from (SELECT * from insider_trading_info where date = '202
 
 
 
-筛选机构选股：
+#see institution stock：
 select a.ticker,c.price, c.target_price, (c.target_price-c.price) as price_diff,sum_shares_decreased,sum_shares_increased,concat( xxx_call.cnt_bid_increased,'::',xxx_call.cnt_bid_decreased ) calls_bid_inc_dec_cnts,
 concat(xxx_call.cnt_vol_increased,'::', xxx_call.cnt_vol_decreased ) calls_vol_inc_dec_cnts,
 concat( xxx_put.cnt_bid_increased, '::', xxx_put.cnt_bid_decreased ) puts_bid_inc_dec_cnts,
@@ -401,7 +395,7 @@ left join ticker_options_summary xxx_put
 on a.ticker = xxx_put.ticker and xxx_put.type = 'put'
 
 
-看5日线，10日线等：
+#see SMA：
 select *, avg(close) OVER(ORDER BY date
      ROWS BETWEEN 4 PRECEDING AND CURRENT ROW ) 
      as sma5, avg(close) OVER(ORDER BY date
