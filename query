@@ -406,7 +406,3 @@ select *, avg(close) OVER(ORDER BY date
      ROWS BETWEEN 29 PRECEDING AND CURRENT ROW ) 
      as sma30
  from class_4.ticker_hist where ticker = "any ticker"
-下一个任务：大盘指数：spy，nasdaq的机器学习用来预测 （预测效果不太好，需要优化）
-下一个任务：分析earning call （已经完成earning date爬取）
-下一个任务：查看twitter股票情绪面分析  （已经完成初步）
-下一个任务：爬取linkedin公司员工数据 （未完成）
